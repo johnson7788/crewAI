@@ -134,7 +134,7 @@ class CrewAgentExecutor(AgentExecutor):
                 )
 
                 if self.step_callback:
-                    self.step_callback(next_step_output)
+                    self.step_callback(next_step_output,self.task.id, self.task.agent.id)
 
                 if isinstance(next_step_output, AgentFinish):
                     # Creating long term memory
