@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from crewai.utilities import Printer
@@ -12,10 +13,15 @@ class LTMSQLiteStorage:
     """
 
     def __init__(
-        self, db_path: str = f"{db_storage_path()}/long_term_memory_storage.db"
+        self, db_path: Optional[str] = None
     ) -> None:
+        if db_path is None:
+            # Get the parent directory of the default db path and create our db file there
+            db_path = str(Path(db_storage_path()) / "long_term_memory_storage.db")
         self.db_path = db_path
         self._printer: Printer = Printer()
+        # Ensure parent directory exists
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._initialize_db()
 
     def _initialize_db(self):
@@ -83,7 +89,7 @@ class LTMSQLiteStorage:
                     WHERE task_description = ?
                     ORDER BY datetime DESC, score ASC
                     LIMIT {latest_n}
-                """,
+                """,  # nosec
                     (task_description,),
                 )
                 rows = cursor.fetchall()
@@ -100,6 +106,23 @@ class LTMSQLiteStorage:
         except sqlite3.Error as e:
             self._printer.print(
                 content=f"MEMORY ERROR: An error occurred while querying LTM: {e}",
+                color="red",
+            )
+        return None
+
+    def reset(
+        self,
+    ) -> None:
+        """Resets the LTM table with error handling."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM long_term_memories")
+                conn.commit()
+
+        except sqlite3.Error as e:
+            self._printer.print(
+                content=f"MEMORY ERROR: An error occurred while deleting all rows in LTM: {e}",
                 color="red",
             )
         return None
